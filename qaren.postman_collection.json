@@ -1,0 +1,209 @@
+{
+  "info": {
+    "name": "Qaren API",
+    "description": "كل endpoints الباك إند تبع Qaren.\n\n## الإعداد\n1. شغّل السيرفر: `npm run dev` (المنفذ 3000 حسب .env)\n2. حط الـ Clerk session token بمتغير `clerkToken` من تبويب Variables\n3. باقي المتغيرات (`watchId`) بتنملّى لحالها لما تشغّل `POST /api/watches`\n\n## ملاحظات\n- كل الطلبات بترث `Bearer {{clerkToken}}` ما عدا `/health`\n- الـ bodies كلها `.strict()` — أي حقل زيادة بيرجّع 400\n- `/api/recommendations` و `/api/predictions` بيحتاجوا `GEMINI_API_KEY` بالـ .env، وبيتقيّدوا بـ 5 طلبات/دقيقة\n- `/api/products/search` بيتقيّد بـ 10 طلبات/دقيقة وبيحتاج الموقع محدّد مسبقًا (وإلا 403)\n- الـ Clerk webhook مش مشمول: بيحتاج توقيع Svix ما بينولّد من Postman",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{clerkToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "clerkToken", "value": "", "type": "string" },
+    { "key": "watchId", "value": "", "type": "string" },
+    { "key": "productId", "value": "1234567890", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "GET /api/user/me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/user/me", "host": ["{{baseUrl}}"], "path": ["api", "user", "me"] },
+            "description": "بيرجّع مستند المستخدم المحلي من MongoDB (مش من Clerk).\n\nبدون body.\n\n404 يعني الجلسة صالحة بس الـ webhook ما زامن المستخدم."
+          }
+        },
+        {
+          "name": "PATCH /api/user/location",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 24.7136,\n  \"longitude\": 46.6753,\n  \"city\": \"Riyadh\",\n  \"country\": \"Saudi Arabia\",\n  \"source\": \"gps\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/user/location", "host": ["{{baseUrl}}"], "path": ["api", "user", "location"] },
+            "description": "كل الحقول مطلوبة.\n\n- latitude: -90 إلى 90\n- longitude: -180 إلى 180\n- city / country: نص أو null\n- source: \"gps\" أو \"manual\" بس\n\nالـ updatedAt بينحسب بالسيرفر.\n\n⚠️ لازم تشغّلها قبل /api/products/search وإلا بيرجّع 403."
+          }
+        },
+        {
+          "name": "PATCH /api/user/push-token",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pushToken\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/user/push-token", "host": ["{{baseUrl}}"], "path": ["api", "user", "push-token"] },
+            "description": "بدونها ما بيوصل أي إشعار حتى لو تحقق السعر المستهدف.\n\n.strict() — أي حقل زيادة = 400."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "GET /api/products/search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/search?name=iPhone 15&brand=Apple&minPrice=2000&maxPrice=5000",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "search"],
+              "query": [
+                { "key": "name", "value": "iPhone 15", "description": "مطلوب — 1 إلى 200 حرف" },
+                { "key": "brand", "value": "Apple", "description": "اختياري — ≤100" },
+                { "key": "category", "value": "smartphones", "description": "اختياري — ≤100", "disabled": true },
+                { "key": "minPrice", "value": "2000", "description": "اختياري — رقم موجب" },
+                { "key": "maxPrice", "value": "5000", "description": "اختياري — لازم ≥ minPrice" }
+              ]
+            },
+            "description": "بحث ومقارنة أسعار عبر SerpAPI.\n\nبيرجّع { results, priceComparison: { cheapest, mostExpensive, priceDifference } }.\n\n⚠️ لازم الموقع محدّد (PATCH /api/user/location) وإلا 403.\n⚠️ rate limit: 10 طلبات/دقيقة.\n\nخد الـ product_id والـ productToken من النتيجة لإنشاء Watch."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Watches",
+      "item": [
+        {
+          "name": "GET /api/watches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/watches", "host": ["{{baseUrl}}"], "path": ["api", "watches"] },
+            "description": "كل المراقبات تبع المستخدم، من الأحدث للأقدم.\n\nبترجّع [] لو ما في شي (مش 404)."
+          }
+        },
+        {
+          "name": "POST /api/watches",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// بيخزّن الـ id تلقائيًا عشان DELETE و History يشتغلوا بدون نسخ ولصق",
+                  "if (pm.response.code === 201) {",
+                  "    const id = pm.response.json().data._id;",
+                  "    pm.collectionVariables.set('watchId', id);",
+                  "    console.log('watchId =', id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"productToken\": \"ضع_هنا_immersive_product_page_token_من_نتيجة_البحث\",\n  \"productName\": \"Apple iPhone 15 128GB\",\n  \"productImage\": \"https://example.com/iphone15.jpg\",\n  \"store\": \"Jarir Bookstore\",\n  \"priceAtAdd\": 3499,\n  \"targetPrice\": 3000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/watches", "host": ["{{baseUrl}}"], "path": ["api", "watches"] },
+            "description": "إنشاء مراقبة. صلاحيتها 30 يوم بينحسبوا بالسيرفر.\n\nمطلوب: productId, productToken, productName, store, priceAtAdd, targetPrice\nاختياري: productImage (URL صالح أو null)\n\n.strict() — أي حقل زيادة = 400.\n409 = عم تراقب نفس المنتج مرتين.\n\n✅ سكربت التيست بيخزّن الـ _id بمتغير watchId تلقائيًا."
+          }
+        },
+        {
+          "name": "DELETE /api/watches/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/watches/{{watchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watches", "{{watchId}}"]
+            },
+            "description": "حذف مراقبة. مقيّد بالمالك — ما بتقدر تحذف مراقبة غيرك.\n\nid لازم ObjectId (24 حرف hex) وإلا 400.\n404 = مش موجودة أو مش ملكك (نفس الرسالة للحالتين عن قصد).\n\nبدون body."
+          }
+        }
+      ]
+    },
+    {
+      "name": "History",
+      "item": [
+        {
+          "name": "GET /api/history/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/history/{{watchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "history", "{{watchId}}"]
+            },
+            "description": "⚠️ الـ id هون هو watchId مش historyId.\n\nبيرجّع { dataPoints, stats: { min, max, avg } } لآخر 30 يوم.\n\nلو ما في قراءات بعد: { dataPoints: [], stats: null } بكود 200.\n\nالكرون بيسجّل قراءة وحدة كل يوم الساعة 00:00، فمراقبة جديدة بتكون فاضية."
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI (Gemini)",
+      "item": [
+        {
+          "name": "POST /api/recommendations",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"name\": \"Apple iPhone 15 128GB\",\n  \"price\": 3199,\n  \"store\": \"Jarir Bookstore\",\n  \"category\": \"smartphones\",\n  \"rating\": 4.6,\n  \"reviews\": 1250\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/recommendations", "host": ["{{baseUrl}}"], "path": ["api", "recommendations"] },
+            "description": "توصية Buy Now / Wait.\n\nمطلوب: productId (≤100), name (≤200), price (موجب)\nاختياري: store, category (≤100), rating (0-5), reviews (≥0)\n\nبيرجّع { decision: \"buy_now\"|\"wait\", reason, confidence, basedOnHistory, cached }\n\n🌐 اللغة: reason بيرجع **بالعربي**. decision بيضل **إنجليزي** (معرّف الموبايل بيعمل عليه switch).\n\n📌 هاد الفيتشر **بيستخدم** التاريخ: لو أنت مراقب هالـ productId، السيرفر بيرفق إحصائيات PriceHistory تلقائيًا و basedOnHistory بترجع true.\n\n⚠️ 5 طلبات/دقيقة. كرّر نفس الطلب → cached: true."
+          }
+        },
+        {
+          "name": "POST /api/predictions",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"name\": \"Apple iPhone 15 128GB\",\n  \"price\": 3199,\n  \"store\": \"Jarir Bookstore\",\n  \"category\": \"smartphones\",\n  \"rating\": 4.6,\n  \"reviews\": 1250\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/predictions", "host": ["{{baseUrl}}"], "path": ["api", "predictions"] },
+            "description": "Intelligent Price Forecasting — نفس الـ body تبع /api/recommendations بالضبط.\n\nبيرجّع:\n{\n  trend: \"rising\"|\"falling\"|\"stable\",\n  expectedChangePercent,   // بإشارة، سالب = نزول\n  horizonWeeks,\n  bestTimeToBuy: \"now\"|\"soon\"|\"wait\",\n  reason, confidence, analysis,\n  factors: { priceHistory, productLifecycle, currentDiscounts, marketBehavior },\n  cached\n}\n\n🌐 اللغة: reason و analysis و factors الأربعة بيرجعوا **بالعربي**. trend و bestTimeToBuy بيضلوا **إنجليزي** (معرّفات الموبايل بيعمل عليها switch).\n\n📌 هاد الفيتشر **ما بيلمس** history/ إطلاقًا — Gemini بيحلّل السوق من معرفتو هو. بيشتغل على أي منتج، مراقَب أو لأ.\n\n⚠️ 5 طلبات/دقيقة."
+          }
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "description": "فحص صحة السيرفر. بدون مصادقة.\n\nبيرجّع {\"status\":\"ok\"}.\n\n⚠️ شكلو مختلف عن باقي الردود (ما بيمر عبر successResponse)."
+          }
+        }
+      ]
+    }
+  ]
+}
