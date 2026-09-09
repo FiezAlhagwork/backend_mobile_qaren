@@ -20,6 +20,12 @@ const watchSchema = new mongoose.Schema(
     lastCheckedAt: { type: Date, default: null },
 
     isActive: { type: Boolean, default: true },
+    /**
+     * فحوصات فاشلة متتالية. بترجع صفر مع أول فحص ناجح، وعند وصولها للحد
+     * بتنطفي المراقبة — بدونها المراقبة يلي بتفشل كل ليلة بتضل تبيّن «نشطة»
+     * للمستخدم للأبد وبتاكل نداء SerpAPI بكل تشغيلة
+     */
+    consecutiveFailures: { type: Number, default: 0 },
     expiresAt: { type: Date, required: true },
     notifiedAt: { type: Date, default: null },
   },

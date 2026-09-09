@@ -7,7 +7,11 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(5000),
 
-  MONGO_URI: z.url(), // local: mongodb://127.0.0.1:27017/qaren
+  // محلي: mongodb://127.0.0.1:27017/qaren
+  // Atlas: mongodb+srv://user:pass@cluster.xxxxx.mongodb.net/qaren?retryWrites=true&w=majority
+  // ⚠️ اسم قاعدة البيانات لازم يكون بالرابط (قبل علامة الاستفهام) — رابط
+  // Atlas المنسوخ من الموقع بيجي بلا اسم، وبدونه كل شي بينكتب بقاعدة `test`
+  MONGO_URI: z.url(),
 
   CLERK_SECRET_KEY: z.string().min(1),
   CLERK_PUBLISHABLE_KEY: z.string().min(1),

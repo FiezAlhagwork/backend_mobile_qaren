@@ -8,6 +8,7 @@ const start = async () => {
   
   startWatchCron();
 
+  
   const server = app.listen(env.PORT, () => {
     console.log(`🚀 Server running on port ${env.PORT} [${env.NODE_ENV}]`);
   });

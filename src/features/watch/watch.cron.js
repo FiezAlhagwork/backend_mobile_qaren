@@ -12,6 +12,28 @@ const getCheapestOffer = (stores) => {
   );
 };
 
+/**
+ * سطر واحد بيلخّص الفشل مع العدّاد، وبيقول صراحةً لما المراقبة تنطفي.
+ * قبلها كان الفشل بيطلع كتحذير بلا سياق، فما في طريقة تعرف إذا هي مشكلة
+ * عابرة ولا مراقبة ميتة من أسابيع.
+ */
+const registerFailure = async (watch, reason) => {
+  const { failures, deactivated } = await watchService.registerCheckFailure(
+    watch._id,
+  );
+
+  if (deactivated) {
+    console.error(
+      `[watch-cron] Watch ${watch._id} deactivated after ${failures} consecutive failures — last reason: ${reason}`,
+    );
+    return;
+  }
+
+  console.warn(
+    `[watch-cron] Watch ${watch._id} failed (${failures}/3) — ${reason}`,
+  );
+};
+
 const processWatch = async (watch) => {
   try {
     const details = await getProductDetails({
@@ -21,9 +43,9 @@ const processWatch = async (watch) => {
 
     const cheapest = getCheapestOffer(details.product_results?.stores);
     if (!cheapest) {
-      console.warn(
-        `[watch-cron] No stores returned for watch ${watch._id}, skipping`,
-      );
+      // مش «تخطّي» — هاد فشل فحص. رد بلا متاجر يعني المنتج ما عاد معروض،
+      // ولو ضل يتكرر لازم المراقبة تنطفي بدل ما تضل تستهلك نداءات
+      await registerFailure(watch, "no stores returned");
       return;
     }
 
@@ -60,10 +82,7 @@ const processWatch = async (watch) => {
       return;
     }
 
-    console.error(
-      `[watch-cron] Failed to process watch ${watch._id}:`,
-      err.message,
-    );
+    await registerFailure(watch, err.message);
   }
 };
 
