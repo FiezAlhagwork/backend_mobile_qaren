@@ -5,7 +5,7 @@ dotenv.config();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.coerce.number().default(5000),
+  PORT: z.coerce.number().default(8000),
 
   // محلي: mongodb://127.0.0.1:27017/qaren
   // Atlas: mongodb+srv://user:pass@cluster.xxxxx.mongodb.net/qaren?retryWrites=true&w=majority
