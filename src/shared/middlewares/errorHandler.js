@@ -20,6 +20,12 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   if (err instanceof AppError) {
+    // بلا Retry-After العميل بيضل يجرّب على عمى — وبحالة 429 كل محاولة فاشلة
+    // بتحرق من الحصة يلي أصلًا خلصانة
+    if (err.retryAfter != null) {
+      res.set("Retry-After", String(err.retryAfter));
+    }
+
     return errorResponse(res, err.statusCode, err.message);
   }
 
