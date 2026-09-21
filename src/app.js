@@ -21,6 +21,7 @@ import watchRoutes from './features/watch/watch.routes.js';
 import historyRoutes from './features/history/history.routes.js';
 import recommendationRoutes from './features/recommendation/recommendation.routes.js';
 import predictionRoutes from './features/prediction/prediction.routes.js';
+import notificationRoutes from './features/notification/notification.routes.js';
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/api/watches', watchRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/predictions', predictionRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 

@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import * as watchService from "./watch.service.js";
 import * as historyService from "../history/history.service.js"; // + جديد
+import * as notificationService from "../notification/notification.service.js";
 import { getProductDetails } from "../../shared/services/serpapi.service.js";
 import { sendPushNotification } from "../../shared/services/push.service.js";
 import User from "../../models/User.js";
@@ -64,6 +65,15 @@ const processWatch = async (watch) => {
     );
 
     if (targetHit) {
+      // السجل أولًا وخارج شرط الـ push تحت. الـ push محاولة أفضل-جهد —
+      // بتعتمد على تفضيل المستخدم وعلى وجود توكن، وExpo Go ما بيستقبلها
+      // إطلاقًا. لو ربطنا الحفظ فيها، شاشة الإشعارات بتضل فاضية للأبد
+      await notificationService.createTargetHitNotification({
+        watch,
+        price: cheapest.extracted_price,
+        store: cheapest.name,
+      });
+
       const user = await User.findById(watch.userId);
       if (user?.preferences?.pushNotificationsEnabled && user?.pushToken) {
         await sendPushNotification(user.pushToken, {
