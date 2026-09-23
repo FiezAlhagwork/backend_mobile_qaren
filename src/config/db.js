@@ -35,9 +35,20 @@ export const connectDB = async () => {
       serverSelectionTimeoutMS: isAtlas() ? 15000 : 5000,
     });
 
+    // اسم القاعدة مطبوع عن قصد: رابط Atlas المنسوخ من الموقع بيجي بلا اسم،
+    // وبدونه كل شي بينكتب بقاعدة `test` بصمت. بدون طباعته، الطريقة الوحيدة
+    // لاكتشاف الغلط هي تفتح Atlas وتلاقي مجموعاتك بمكان ما بتتوقعه
     console.log(
-      `✅ MongoDB connected (${isAtlas() ? "Atlas" : "local"}): ${mongoose.connection.host}`,
+      `✅ MongoDB connected (${isAtlas() ? "Atlas" : "local"}): ` +
+        `${mongoose.connection.host}/${mongoose.connection.name}`,
     );
+
+    if (mongoose.connection.name === "test") {
+      console.warn(
+        "⚠️  قاعدة البيانات اسمها `test` — الأرجح إنه MONGO_URI بلا اسم قاعدة.\n" +
+          "   حط الاسم قبل علامة الاستفهام: …mongodb.net/qaren?retryWrites=true",
+      );
+    }
   } catch (err) {
     console.error("❌ MongoDB connection failed:", err.message);
     console.error("→", explainFailure(err.message));

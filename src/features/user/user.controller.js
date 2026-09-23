@@ -1,5 +1,3 @@
-import { getAuth } from "@clerk/express";
-import AppError from "../../shared/utils/AppError.js";
 import { successResponse } from "../../shared/utils/response.js";
 import {
   updateLocationSchema,
@@ -7,22 +5,16 @@ import {
   updatePreferencesSchema,
 } from "./user.validation.js";
 import {
-  findUserByClerkId,
   updateUserLocation,
   updatePushToken,
   updatePreferences,
 } from "./user.service.js";
 
+// `req.localUser` جاهز من resolveLocalUser — وهو بينشئ الصف من Clerk إذا كان
+// ناقص، فما عاد في حاجة لبحث يدوي ولا لرمي 404 هون
 export const getMe = async (req, res, next) => {
   try {
-    const { userId } = getAuth(req);
-
-    const user = await findUserByClerkId(userId);
-    if (!user) {
-      throw new AppError("User not found in local database", 404);
-    }
-
-    return successResponse(res, 200, "User fetched", user);
+    return successResponse(res, 200, "User fetched", req.localUser);
   } catch (err) {
     next(err);
   }
@@ -30,14 +22,12 @@ export const getMe = async (req, res, next) => {
 
 export const updateLocation = async (req, res, next) => {
   try {
-    const { userId } = getAuth(req);
-
     const parsed = updateLocationSchema.parse(req.body);
 
-    const updatedUser = await updateUserLocation(userId, parsed);
-    if (!updatedUser) {
-      throw new AppError("User not found in local database", 404);
-    }
+    const updatedUser = await updateUserLocation(
+      req.localUser.clerkId,
+      parsed,
+    );
 
     return successResponse(res, 200, "Location updated", updatedUser.location);
   } catch (err) {

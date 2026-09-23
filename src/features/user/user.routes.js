@@ -12,8 +12,17 @@ import { resolveLocalUser } from "../../shared/middlewares/resolveLocalUser.js";
 
 const router = Router();
 
-router.get("/me", requireAuthenticated, getMe);
-router.patch("/location", requireAuthenticated, updateLocation);
+// resolveLocalUser على الاتنين كمان: بينشئ الصف من Clerk إذا كان ناقص بدل ما
+// يرمي 404. بدونها، أول نداء بعد التسجيل (`/me`) بيفشل لما يكون الـ webhook
+// ما وصل — وهاد بيصير دايمًا بالتطوير المحلي، لأن Clerk ما بتقدر توصل
+// لـ localhost. كانوا المسارين الوحيدين بلا هالحماية
+router.get("/me", requireAuthenticated, resolveLocalUser, getMe);
+router.patch(
+  "/location",
+  requireAuthenticated,
+  resolveLocalUser,
+  updateLocation,
+);
 router.patch(
   "/push-token",
   requireAuthenticated,
